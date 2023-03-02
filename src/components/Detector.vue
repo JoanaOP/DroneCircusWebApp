@@ -1,20 +1,23 @@
 <template>
     <div>
-        <div style ="width:80%; display: flex; justify-content: center;">            
-            <canvas style="margin-left:20%; width: 400px; height: 300px; border-style: solid;" id= "output"></canvas>
-        </div> 
+        <VideoDisplay></VideoDisplay>
+        <VideoCapture></VideoCapture>
     </div>
 </template>
 
-<script>
-import { defineComponent, ref, onMounted } from 'vue'
+<script lang="ts">
+import { defineComponent } from 'vue'
+import VideoDisplay from './VideoDisplay.vue'
+import VideoCapture from './VideoCapture.vue'
 
 export default defineComponent({
-    setup () {            
+    components:{
+        VideoDisplay,
+        VideoCapture
+    },
+    setup () {        
 
-        return {
-            
-        }
+        return {}
     }
 })
 </script>

@@ -44,5 +44,6 @@ export default defineComponent({
         width: 70%;
         height: 280px;
         border-style: solid;
+        z-index: 1;
     }
 </style>

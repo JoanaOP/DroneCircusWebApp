@@ -54,5 +54,6 @@ export default defineComponent({
     font-weight: bold;
     background-color: #973a93;
     color: #f1f437;
+    border: none;
 }
 </style>
