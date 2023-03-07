@@ -48,7 +48,8 @@ export default defineComponent({
             this.stream.getTracks().forEach(function(track) {
                 track.stop();
             });
-            clearInterval(this.interval)
+            clearInterval(this.interval);
+            this.client.publish("droneCircusWebApp/imageService/stopVideoStream");
         }        
     },
     data() {        

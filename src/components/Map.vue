@@ -16,6 +16,7 @@ export default defineComponent({
 
         let map;
         let direction;
+        let selectedLevel;
 
         let interval;
 
@@ -43,14 +44,12 @@ export default defineComponent({
         let eastIcon = leaflet.divIcon({className: 'mylabel', html: "<div style='width: 50;'><b style='color:yellow;'>E</b></div>"})
         let westIcon = leaflet.divIcon({className: 'mylabel', html: "<div style='width: 50;'><b style='color:yellow;'>W</b></div>"})
 
-        let droneLabLimits = [
-                    [41.2764151, 1.9882914],
-                    [41.2762170, 1.9883551],
-                    [41.2763733, 1.9890491],
-                    [41.2765582, 1.9889881],
-                ]
+        let droneLabLimits = [[41.2764151, 1.9882914],[41.2762170, 1.9883551],[41.2763733, 1.9890491],[41.2765582, 1.9889881]];
+        let obstacle1 = [[41.2764408, 1.9885938],[41.2764368, 1.9886494],[41.2763385, 1.9886407],[41.2763450, 1.9885878]];
+        let obstacle21 = [[41.2765219, 1.9888506],[41.2764065, 1.9888902],[41.2763924, 1.9888600],[41.2765669, 1.9887990]];
+        let obstacle22 = [[41.2764287, 1.9887453],[41.2763123, 1.9888077],[41.2763032, 1.9887460],[41.2764267, 1.9887111]];
+        let obstacle23 = [[41.2764569, 1.9885515],[41.2763461, 1.9886903],[41.2763274, 1.9886535],[41.2764473, 1.9885274]];
         
-        //let northLinePoints = [practicePoint,[practicePoint + Math.trunc(5 * self.ppm * Math.sin(Math.PI)), practicePoint + Math.trunc(5 * self.ppm * Math.cos(Math.PI)) ]]
         function setDirection(code){
             if (code == 0){
                 direction = "Stop";
@@ -180,10 +179,15 @@ export default defineComponent({
 
                 practicePoint = [practicePointLat, practicePointLong];
             }
-            if(inside(practicePoint, droneLabLimits)){
+            if(selectedLevel=="Basico" && inside(practicePoint, droneLabLimits)){
                 paintDrone();
             }
-
+            else if(selectedLevel=="Medio" && inside(practicePoint, droneLabLimits) && !inside(practicePoint, obstacle1)){
+                paintDrone();
+            }
+            else if(selectedLevel=="Avanzado" && inside(practicePoint, droneLabLimits) && !inside(practicePoint, obstacle21) && !inside(practicePoint, obstacle22) && !inside(practicePoint, obstacle23)){
+                paintDrone();
+            }
        }
 
        function startMoving(){
@@ -209,7 +213,8 @@ export default defineComponent({
            // map.on("click",onMapClick); // associem el event click a la funcio onMapClick
            // map.on("mousemove",onMapOver); // passar el ratoli per sobre el mapa
            // map.on("contextmenu",onRightClick); //context menu es el click del boto dret del ratoli
-           let droneLabPolygon = leaflet.polygon(droneLabLimits, {color: 'white'}).addTo(map);
+           let droneLabPolygon = leaflet.polygon(droneLabLimits, {color: 'white'}).addTo(map);           
+
            paintDrone();
            
            emitter.on('videoCapture', (cap) => {
@@ -220,6 +225,18 @@ export default defineComponent({
                     stopMoving();
                 }
             });
+
+            emitter.on ('selectedLevel', (data) => {
+                selectedLevel = data.level;                
+                if(selectedLevel=="Medio"){
+                    let obstacle1Polygon = leaflet.polygon(obstacle1, {color: 'blue'}).addTo(map);
+                }
+                else if(selectedLevel=="Avanzado"){
+                    let obstacle21Polygon = leaflet.polygon(obstacle21, {color: 'blue'}).addTo(map);
+                    let obstacle22Polygon = leaflet.polygon(obstacle22, {color: 'blue'}).addTo(map);
+                    let obstacle23Polygon = leaflet.polygon(obstacle23, {color: 'blue'}).addTo(map);
+                }                                   
+            })
 
            client.on('message', (topic,message) => {
                 if (topic=="imageService/droneCircusWebApp/code"){
@@ -234,7 +251,8 @@ export default defineComponent({
             client,
             setDirection,
             practicePoint,
-            northPoint
+            northPoint,
+            selectedLevel
         }
     }
 })

@@ -34,7 +34,8 @@ export default defineComponent({
                         cv.imshow ('output',dst); // coloca la imatge al canvas, el mateix que feiem abans pero amb opencv
                     }
                 }
-            })
+            });
+
         })
 
         return {

@@ -2,20 +2,31 @@
     <div>
         <div class="row">
             <div class="col" style="text-align: center;">
-                <b-button @click="easyClicked" class="button" v-model="easyColor" :style="{backgroundColor: easyColor }">Easy</b-button>
+                <b-button @click="easyClicked" class="button" v-model="easyColor" :disabled="easyDisabled" :style="{backgroundColor: easyColor }">Easy</b-button>
             </div>
             <div class="col" style="text-align: center;">
-                <b-button @click="difficultClicked" class="button" v-model="difficultColor" :style="{backgroundColor: difficultColor }">Difficult</b-button>
+                <b-button @click="difficultClicked" class="button" v-model="difficultColor" :disabled="difficultDisabled" :style="{backgroundColor: difficultColor }">Difficult</b-button>
             </div>
         </div>
-        <div class="row" style="">
+        <div v-if="!showingFlyingButtons" class="row" style="">
             <div class="col" style="text-align: center;">
                 <b-button @click="selectScenarioClicked" class="button" :disabled="selectScenarioDisabled" :style="{backgroundColor: selectLevelColor }">Select scenario</b-button>
             </div>
         </div>
+        <div v-if="showingFlyingButtons" class="row" style="">
+            <div class="col" style="text-align: center;">
+                <b-button @click="connectClick" class="button" :disabled="connectDisabled" :style="{backgroundColor: connectColor }">{{ connectText }}</b-button>
+            </div>
+            <div class="col" style="text-align: center;">
+                <b-button @click="armClick" class="button" :disabled="armDisabled" :style="{backgroundColor: armColor }">{{ armText }}</b-button>
+            </div>
+            <div class="col" style="text-align: center;">
+                <b-button @click="takeoffClick" class="button" :disabled="takeoffDisabled" :style="{backgroundColor: takeoffColor }">{{ takeoffText }}</b-button>
+            </div>
+        </div>
         <div class="row" style="">
             <div class="col-8" style="text-align: center;">
-                <b-button @click="startPractice" class="button" :disabled="practiceButtonDisabled" v-model="easyColor" :style="{backgroundColor: practiceColor }">Practice</b-button>
+                <b-button @click="practiceClick" class="button" :disabled="practiceButtonDisabled" v-model="easyColor" :style="{backgroundColor: practiceColor }">{{ textPractice }}</b-button>
             </div>
             <div class="col-4" style="text-align: center;">
                 <b-button @click="close" class="button" style="background-color: #D2001A; border-color: #D2001A;">Close</b-button>
@@ -42,6 +53,21 @@ export default defineComponent({
         let showLevelSelector = ref(false);
         let selectLevelColor = ref("gray")
         let practiceColor = ref("gray")
+        let easyDisabled = ref(false);
+        let difficultDisabled = ref(false);
+        let showingFlyingButtons = ref(false);
+        let textPractice = ref("Practice");
+        let connectDisabled = ref(false);
+        let armDisabled = ref(true);
+        let takeoffDisabled = ref(true);
+        let connectColor = ref("gray");
+        let armColor = ref("gray");
+        let takeoffColor = ref("gray");
+        let connectText = ref("Connect");
+        let armText = ref("Arm");  
+        let takeoffText = ref("Take Off");      
+        
+        let state = "idle";
         
         function close(){
             context.emit('close'); // el context es passa com a parametre del setup
@@ -72,11 +98,44 @@ export default defineComponent({
             context.emit('selectLevel');
             practiceButtonDisabled.value = false;
             selectLevelColor.value = "#61AE4A";
+            selectScenarioDisabled.value = true;
+            easyDisabled.value = true;
+            difficultDisabled.value = true;
         }
 
-        function startPractice(){
-            practiceColor.value = "#61AE4A"
-            context.emit('practice');            
+        function practiceClick(){
+            if(state == "idle"){
+                practiceColor.value = "#973a93"
+                context.emit('practice');  
+                textPractice.value = "I'm ready. I want to fly!"
+                state = "practising";  
+            }
+            else if(state == "practising"){
+                state == "disconnected";
+                showingFlyingButtons.value = true;
+                practiceColor.value = "gray"
+                emitter.emit('videoCapture', {'capturing':false});            
+            }
+        }
+
+        function connectClick(){
+            connectColor.value = "#DC5F00";
+            connectText.value = "Connecting...";
+            armDisabled.value = false;
+            context.emit('connect');
+        }
+
+        function armClick(){
+            armColor.value = "#DC5F00";
+            armText.value = "arming...";
+            takeoffDisabled.value = false;
+            connectDisabled.value = true;
+        }
+
+        function takeoffClick(){
+            takeoffColor.value = "#DC5F00";
+            takeoffText.value = "taking off...";
+            armDisabled.value = true;
         }
 
         return {
@@ -91,8 +150,24 @@ export default defineComponent({
             practiceButtonDisabled,
             showLevelSelector,
             selectLevelColor,
-            startPractice,
-            practiceColor
+            practiceClick,
+            practiceColor,
+            easyDisabled,
+            difficultDisabled,
+            textPractice,
+            showingFlyingButtons,
+            connectDisabled,
+            connectClick,
+            connectColor,
+            armClick,
+            armColor,
+            armDisabled,
+            takeoffClick,
+            takeoffColor,
+            takeoffDisabled,
+            connectText,
+            armText,
+            takeoffText
         }
     }
 })
