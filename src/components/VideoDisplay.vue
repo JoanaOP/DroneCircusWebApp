@@ -18,7 +18,6 @@ export default defineComponent({
         let client = inject("mqttClient");       
         onMounted(()=>{            
             client.on('message', (topic,message) => {
-                console.log(topic)
                 if(topic=="imageService/droneCircusWebApp/videoFrame"){
                     const img = new Image();
                     img.src = "data:image/jpg;base64,"+message; //objecte tipo Image on li coloquem la imatge rebuda pel payload, el tag es per identificar el tipus de imatge

@@ -15,7 +15,7 @@
         </div>
         <div class="row" style="">
             <div class="col-8" style="text-align: center;">
-                <b-button @click="startPractice" class="button" :disabled="practiceButtonDisabled" style="background-color: gray;">Practice</b-button>
+                <b-button @click="startPractice" class="button" :disabled="practiceButtonDisabled" v-model="easyColor" :style="{backgroundColor: practiceColor }">Practice</b-button>
             </div>
             <div class="col-4" style="text-align: center;">
                 <b-button @click="close" class="button" style="background-color: #D2001A; border-color: #D2001A;">Close</b-button>
@@ -41,6 +41,7 @@ export default defineComponent({
         let practiceButtonDisabled = ref(true);
         let showLevelSelector = ref(false);
         let selectLevelColor = ref("gray")
+        let practiceColor = ref("gray")
         
         function close(){
             context.emit('close'); // el context es passa com a parametre del setup
@@ -74,7 +75,8 @@ export default defineComponent({
         }
 
         function startPractice(){
-            context.emit('practice');
+            practiceColor.value = "#61AE4A"
+            context.emit('practice');            
         }
 
         return {
@@ -89,7 +91,8 @@ export default defineComponent({
             practiceButtonDisabled,
             showLevelSelector,
             selectLevelColor,
-            startPractice
+            startPractice,
+            practiceColor
         }
     }
 })

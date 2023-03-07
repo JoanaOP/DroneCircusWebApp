@@ -77,6 +77,7 @@ export default defineComponent({
             let message = JSON.stringify(parameters);
             client.publish("droneCircusWebApp/imageService/parameters", message);
             client.subscribe("imageService/droneCircusWebApp/videoFrame")
+            client.subscribe("imageService/droneCircusWebApp/code")
             emitter.emit('videoCapture',  {'capturing':true});
         }
         
