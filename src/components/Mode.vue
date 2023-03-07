@@ -10,8 +10,8 @@
                 </router-link>             
             </div>
             <div class="col" style="text-align: center;">
-                <router-link to="/main/figures" custom v-slot="{ navigate }">
-                    <b-button @click="navigate" role="link" class="button">Figures</b-button>
+                <router-link to="/main/pose" custom v-slot="{ navigate }">
+                    <b-button @click="navigate" role="link" class="button">Pose</b-button>
                 </router-link>             
             </div>
             <div class="col" style="text-align: center;">

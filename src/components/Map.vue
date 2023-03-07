@@ -5,26 +5,39 @@
 </template>
 
 <script>
-import { defineComponent, onMounted, inject, ref } from 'vue'
+import { defineComponent, onMounted, inject, ref, require } from 'vue'
 import leaflet from 'leaflet'
 
 export default defineComponent({
     setup () {
 
         let client = inject('mqttClient');
+        let emitter = inject('emitter');
 
         let map;
-        let direction = ref("");
+        let direction;
 
-        const ppm = 1/0.1122;
+        let interval;
+
+        let drone;
+        let northLine;
+        let southLine;
+        let westLine;
+        let eastLine;
+
+        let northLabel;
+        let southLabel;
+        let eastLabel;
+        let westLabel;
 
         let practicePointLat = 41.2765003;
         let practicePointLong = 1.9889760;
         let practicePoint = [practicePointLat, practicePointLong];
-        let northPoint = [practicePointLat + 0.00003, practicePointLong + 0];
-        let southPoint = [practicePointLat - 0.00003, practicePointLong + 0];
-        let eastPoint = [practicePointLat + 0, practicePointLong + 0.00004];
-        let westPoint = [practicePointLat + 0, practicePointLong - 0.00004];
+
+        let northPoint;
+        let southPoint;
+        let eastPoint;
+        let westPoint;
         let northIcon = leaflet.divIcon({className: 'mylabel', html: "<div style='width: 50;'><b style='color:yellow; margin-left: 2px;'>N</b></div>"})
         let southIcon = leaflet.divIcon({className: 'mylabel', html: "<div style='width: 50;'><b style='color:yellow; margin-left: 2px;'>S</b></div>"})
         let eastIcon = leaflet.divIcon({className: 'mylabel', html: "<div style='width: 50;'><b style='color:yellow;'>E</b></div>"})
@@ -39,7 +52,10 @@ export default defineComponent({
         
         //let northLinePoints = [practicePoint,[practicePoint + Math.trunc(5 * self.ppm * Math.sin(Math.PI)), practicePoint + Math.trunc(5 * self.ppm * Math.cos(Math.PI)) ]]
         function setDirection(code){
-            if (code == 1){
+            if (code == 0){
+                direction = "Stop";
+            }
+            else if (code == 1){
                 direction = "North";
             }
             else if (code == 2){
@@ -59,6 +75,127 @@ export default defineComponent({
             }
        }
 
+       function inside(point, vs) {
+            // ray-casting algorithm
+            
+            var x = point[0], y = point[1];
+            
+            var inside = false;
+            for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                var xi = vs[i][0], yi = vs[i][1];
+                var xj = vs[j][0], yj = vs[j][1];
+                
+                var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) { 
+                    inside = !inside;
+                }
+            }
+            
+            return inside;
+        }
+
+       function paintDrone(){
+            if(drone!=undefined){
+                drone.remove(map);
+            }
+            if(northLine!=undefined){
+                northLine.remove(map);
+            }
+            if(southLine!=undefined){
+                southLine.remove(map);
+            }
+            if(eastLine!=undefined){
+                eastLine.remove(map);
+            }
+            if(westLine!=undefined){
+                westLine.remove(map);
+            }
+            if(northLabel!=undefined){
+                northLabel.remove(map);
+            }
+            if(southLabel!=undefined){
+                southLabel.remove(map);
+            }
+            if(eastLabel!=undefined){
+                eastLabel.remove(map);
+            }
+            if(westLabel!=undefined){
+                westLabel.remove(map);
+            }
+            
+            drone = leaflet.circle(practicePoint, 0.8, {stroke: false, fill: true, fillColor: "red", fillOpacity: 1}).addTo(map);
+            northPoint = [practicePointLat + 0.00003, practicePointLong + 0];
+            southPoint = [practicePointLat - 0.00003, practicePointLong + 0];
+            eastPoint = [practicePointLat + 0, practicePointLong + 0.00004];
+            westPoint = [practicePointLat + 0, practicePointLong - 0.00004];
+            northLine = leaflet.polyline([practicePoint, northPoint], {color: 'red'}).addTo(map);
+            southLine = leaflet.polyline([practicePoint, southPoint], {color: 'red'}).addTo(map);
+            eastLine = leaflet.polyline([practicePoint, eastPoint], {color: 'red'}).addTo(map);
+            westLine = leaflet.polyline([practicePoint, westPoint], {color: 'red'}).addTo(map);
+            northLabel = leaflet.marker( northPoint, {
+                icon: northIcon
+            }).addTo(map);
+            southLabel = leaflet.marker( southPoint, {
+                icon: southIcon
+            }).addTo(map);
+            eastLabel = leaflet.marker( eastPoint, {
+                icon: eastIcon
+            }).addTo(map);
+            westLabel = leaflet.marker( westPoint, {
+                icon: westIcon
+            }).addTo(map);
+       }
+
+       const R = 6378.1;
+       const d = 0.001;
+
+       function movePoint(){
+            let bearing = null;
+            if (direction == "North"){
+                bearing = 0;
+            }
+            else if (direction == "South"){
+                bearing = Math.PI;
+            }
+            else if (direction == "East"){
+                bearing = Math.PI/2;
+            }
+            else if (direction == "West"){
+                bearing = 3*Math.PI/2;
+            }
+            if (bearing != null){             
+
+                let lat = practicePointLat*Math.PI/180;
+                let lon = practicePointLong*Math.PI/180;
+
+                practicePointLat = (Math.asin(
+                    Math.sin(lat) * Math.cos(d / R)
+                    + Math.cos(lat) * Math.sin(d / R) * Math.cos(bearing)
+                ))*180/Math.PI;
+
+                practicePointLong = (lon + Math.atan2(
+                    Math.sin(bearing) * Math.sin(d / R) * Math.cos(lat),
+                    Math.cos(d / R) - Math.sin(lat) * Math.sin(practicePointLat),
+                ))*180/Math.PI;
+
+                practicePoint = [practicePointLat, practicePointLong];
+            }
+            if(inside(practicePoint, droneLabLimits)){
+                paintDrone();
+            }
+
+       }
+
+       function startMoving(){
+            interval = setInterval(() => {
+                movePoint();
+            }, 1000);
+       }
+
+       function stopMoving(){
+            clearInterval(interval);
+       }
+
         onMounted (() => {
             
             map = leaflet.map('map').setView([41.276386, 1.9886], 20); //coordenadas del campus, es posa en un objecte amb id 'map' que posem a la div, el 19 i el maxZoom es per allunyar i apropar
@@ -72,29 +209,22 @@ export default defineComponent({
            // map.on("click",onMapClick); // associem el event click a la funcio onMapClick
            // map.on("mousemove",onMapOver); // passar el ratoli per sobre el mapa
            // map.on("contextmenu",onRightClick); //context menu es el click del boto dret del ratoli
-           let droneLabPolygon = leaflet.polygon(droneLabLimits, {color: 'white'}).addTo(map)
-           let wp = leaflet.circle(practicePoint, 0.8, {stroke: false, fill: true, fillColor: "red", fillOpacity: 1}).addTo(map);
-           let northLine = leaflet.polyline([practicePoint, northPoint], {color: 'red'}).addTo(map);
-           let southLine = leaflet.polyline([practicePoint, southPoint], {color: 'red'}).addTo(map);
-           let eastLine = leaflet.polyline([practicePoint, eastPoint], {color: 'red'}).addTo(map);
-           let westLine = leaflet.polyline([practicePoint, westPoint], {color: 'red'}).addTo(map);
-
-           let northLabel = leaflet.marker( northPoint, {
-                icon: northIcon
-            }).addTo(map);
-            let southLabel = leaflet.marker( southPoint, {
-                icon: southIcon
-            }).addTo(map);
-            let eastLabel = leaflet.marker( eastPoint, {
-                icon: eastIcon
-            }).addTo(map);
-            let westLabel = leaflet.marker( westPoint, {
-                icon: westIcon
-            }).addTo(map);
+           let droneLabPolygon = leaflet.polygon(droneLabLimits, {color: 'white'}).addTo(map);
+           paintDrone();
+           
+           emitter.on('videoCapture', (cap) => {
+                if(cap.capturing){
+                    startMoving();
+                }
+                else if(!cap.capturing){
+                    stopMoving();
+                }
+            });
 
            client.on('message', (topic,message) => {
                 if (topic=="imageService/droneCircusWebApp/code"){
                     setDirection(message);
+                    movePoint;
                 }
            })
            
@@ -103,7 +233,6 @@ export default defineComponent({
         return {
             client,
             setDirection,
-            direction,
             practicePoint,
             northPoint
         }

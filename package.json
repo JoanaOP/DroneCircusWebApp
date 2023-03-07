@@ -16,6 +16,7 @@
     "mitt": "^3.0.0",
     "mqtt": "^4.3.7",
     "opencv.js": "^1.2.1",
+    "robust-point-in-polygon": "^1.0.3",
     "vue": "^3.0.0",
     "vue-router": "^4.1.6"
   },

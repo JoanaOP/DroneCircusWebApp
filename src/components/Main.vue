@@ -61,6 +61,7 @@ export default defineComponent({
 
         onMounted(() => {
             mode.value = route.params.mode;
+            console.log(mode.value)
             client.publish("droneCircusWebApp/imageService/Connect","");   
         })
 
