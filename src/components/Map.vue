@@ -17,6 +17,7 @@ export default defineComponent({
         let map;
         let direction;
         let selectedLevel;
+        let state;
 
         let interval;
 
@@ -218,12 +219,13 @@ export default defineComponent({
            paintDrone();
            
            emitter.on('videoCapture', (cap) => {
-                if(cap.capturing){
+                if(cap.capturing && cap.sate !="flying"){
                     startMoving();
                 }
-                else if(!cap.capturing){
+                else if(!cap.capturing && cap.sate != "returning"){
                     stopMoving();
                 }
+                state = cap.state;
             });
 
             emitter.on ('selectedLevel', (data) => {
@@ -238,10 +240,21 @@ export default defineComponent({
                 }                                   
             })
 
+            emitter.on('autopilotPosition', (data) => {
+                practicePointLat = data.lat;
+                practicePointLong = data.long;
+                practicePoint = [practicePointLat, practicePointLong];
+                paintDrone();
+            })
+
            client.on('message', (topic,message) => {
-                if (topic=="imageService/droneCircusWebApp/code"){
+                if (topic=="imageService/droneCircusWebApp/code" && state == "practising"){
                     setDirection(message);
-                    movePoint;
+                    movePoint();
+                }
+                else if(topic=="imageService/droneCircusWebApp/code" && state == "flying"){
+                    setDirection(message);
+                    emitter.emit('direction', {'direction': direction});
                 }
            })
            

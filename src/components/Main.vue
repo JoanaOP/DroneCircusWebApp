@@ -2,9 +2,7 @@
     <div style="background-color: #EDF4F2; display: flex; padding-top: 15px; height: auto;">
         <div style="padding-left: 5%; width: 40%;">
             <div>
-                <router-link to="/mode" custom v-slot="{ navigate }">
-                    <Buttons @close="navigate" @selectLevel="showLevelSelector" @practice="practice" @connect="selectConnectionMode"></Buttons>
-                </router-link>                
+                <Buttons @close="close" @selectLevel="showLevelSelector" @practice="practice" @connect="selectConnectionMode" @stopPractice="state = 'disconnected'" @arm="arm" @takeoff="takeoff" @returnHome="returnHome" @disconnect="disconnect"></Buttons>
             </div>
             <div>
                 <Instructions></Instructions>
@@ -25,7 +23,7 @@
 
 <script>
 import { defineComponent, ref, inject, onMounted, provide } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Instructions from './Instructions.vue'
 import Buttons from './Buttons.vue'
 import Map from './Map.vue'
@@ -46,9 +44,11 @@ export default defineComponent({
     setup () {
 
         const route = useRoute()
+        const router = useRouter()
 
         const emitter = inject('emitter');
         let client = inject('mqttClient');
+        let clientAutopilot;
 
         let levelSelectorShowing = ref(false)
         let connectionModeSelectorShowing = ref(false)
@@ -56,6 +56,8 @@ export default defineComponent({
         let difficulty = ref("")
         let mode = ref("")  
         let connectionMode = ref("");
+
+        let state = ref("idle");
         
         
         emitter.on('selectedLevel', (data) => {
@@ -75,23 +77,29 @@ export default defineComponent({
             else if(connectionMode.value == "Local"){
                 external_broker_address = "10.10.10.1"
             }
-            let port = 8000;            
-            try{
-                let clientAutopilot = mqtt.connect('mqtt://'+external_broker_address+':'+port) //proba a connectar-se
-                clientAutopilot.on('connect', () => { //si el commando que rep es 'connect', s'ha connectat bé
-                    console.log("Connection autopilot succeeded!");
-                    provide('mqttClientAutopilot', clientAutopilot); // com s'ha connectet proveim el client als altres components pk el puguin utilitzar
-                })
+            let port = 8000;           
+            createClient(external_broker_address, port);
+        })
+        
+        emitter.on('direction', (data) => {
+            if(state.value != "returning"){
+                if(data.direction == "Drop"){
+                    clientAutopilot.publish('droneCircusWebApp/autopilotService/drop');
+                    clientAutopilot.publish('droneCircusWebApp/autopilotService/reset');
+                }
+                else if(data.direction == "Return"){
+                    returnHome();
+                }
+                else{
+                    clientAutopilot.publish('droneCircusWebApp/autopilotService/go', data.direction);                
+                }
             }
-            catch(error){
-                console.log("mqtt.connect error ", error);
-            }            
         })
 
         onMounted(() => {
             mode.value = route.params.mode;
-            console.log(mode.value)
-            client.publish("droneCircusWebApp/imageService/Connect","");   
+            console.log(mode.value);
+            client.publish("droneCircusWebApp/imageService/Connect","");
         })
 
         function showLevelSelector(){
@@ -99,6 +107,7 @@ export default defineComponent({
         }
 
         function practice(){
+            state.value = "practising";
             const parameters = {
                 mode: mode.value,
                 level: difficulty.value,
@@ -107,12 +116,91 @@ export default defineComponent({
             let message = JSON.stringify(parameters);
             client.publish("droneCircusWebApp/imageService/parameters", message);
             client.subscribe("imageService/droneCircusWebApp/videoFrame")
-            client.subscribe("imageService/droneCircusWebApp/code")
-            emitter.emit('videoCapture',  {'capturing':true});
+            client.subscribe("imageService/droneCircusWebApp/code")            
+            emitter.emit('videoCapture',  {'capturing':true, 'state': state.value});  
         }
 
         function selectConnectionMode(){
             connectionModeSelectorShowing.value = true;
+        }
+
+        function createClient(external_broker_address, port){
+            try{
+                clientAutopilot = mqtt.connect('mqtt://'+external_broker_address+':'+port) //proba a connectar-se
+                clientAutopilot.on('connect', () => { //si el commando que rep es 'connect', s'ha connectat bé
+                    console.log("Connection autopilot succeeded!");
+                })
+                clientAutopilot.publish("droneCircusWebApp/autopilotService/connect");
+                clientAutopilot.subscribe("autopilotService/droneCircusWebApp/#");
+
+                clientAutopilot.on('message', (topic,message) => {
+                    console.log(topic)
+                    if(topic=="autopilotService/droneCircusWebApp/telemetryInfo"){
+                        let telemetryInfo = JSON.parse(message);
+                        let stateAutopilot = telemetryInfo.state;
+                        let lat = telemetryInfo.lat;
+                        let long = telemetryInfo.lon;
+                        if (stateAutopilot == "connected" && state.value == "disconnected"){                            
+                            state.value = "connected";
+                            emitter.emit('autopilotState', {'state': state.value});
+                            emitter.emit('autopilotPosition',{'lat': lat, 'long': long});                                                  
+                        }
+                        else if(stateAutopilot == "armed" && state.value == "connected"){
+                            console.log("armed");
+                            state.value = "armed";
+                            emitter.emit('autopilotState', {'state': state.value});
+                        }
+                        else if(stateAutopilot == "flying" && state.value != "flying"){
+                            state.value = "flying";
+                            emitter.emit('autopilotState', {'state': state.value})
+                            emitter.emit('videoCapture',  {'capturing':true, 'state': state.value});
+                        }
+                        else if(stateAutopilot == "flying" && state.value == "flying"){
+                            emitter.emit('autopilotPosition',{'lat': lat, 'long': long});  
+                        }
+                        else if(stateAutopilot == "returningHome" && state.value == "flying"){                            
+                            state.value = "returning";
+                            emitter.emit('autopilotPosition',{'lat': lat, 'long': long});
+                            emitter.emit('autopilotState', {'state': state.value});
+                            emitter.emit('videoCapture',  {'capturing':false, 'state': state.value});
+                        }
+                        else if(stateAutopilot == "returningHome" && state.value == "returning"){
+                            emitter.emit('autopilotPosition',{'lat': lat, 'long': long});
+                            emitter.emit('autopilotState', {'state': state.value});
+                        }
+                        else if(stateAutopilot == "onHearth" && state.value == "returning"){
+                            state.value = "onHearth";
+                            emitter.emit('autopilotState', {'state': state.value});
+                        }
+                    }
+                })                
+            }
+            catch(error){
+                console.log("mqtt.connect error ", error);
+            }            
+        }
+
+        function arm(){
+            clientAutopilot.publish("droneCircusWebApp/autopilotService/armDrone");
+        }
+
+        function takeoff(){
+            clientAutopilot.publish("droneCircusWebApp/autopilotService/takeOff");
+        }
+
+        function returnHome(){
+            clientAutopilot.publish("droneCircusWebApp/autopilotService/returnToLaunch");
+        }
+
+        function disconnect(){
+            clientAutopilot.publish("droneCircusWebApp/autopilotService/disconnect");
+        }
+
+        function close(){
+            router.push('/mode');
+            if(state.value == 'connected'){                
+                clientAutopilot.end()
+            }
         }
         
         return {
@@ -122,7 +210,13 @@ export default defineComponent({
             difficulty,
             practice,
             selectConnectionMode,
-            connectionModeSelectorShowing
+            connectionModeSelectorShowing,
+            state,
+            close,
+            arm,
+            takeoff,
+            returnHome,
+            disconnect
         }
     }
 })

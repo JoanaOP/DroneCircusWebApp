@@ -29,7 +29,7 @@
                 <b-button @click="practiceClick" class="button" :disabled="practiceButtonDisabled" v-model="easyColor" :style="{backgroundColor: practiceColor }">{{ textPractice }}</b-button>
             </div>
             <div class="col-4" style="text-align: center;">
-                <b-button @click="close" class="button" style="background-color: #D2001A; border-color: #D2001A;">Close</b-button>
+                <b-button @click="close" class="button" :disabled="closeDisabled" style="background-color: #D2001A; border-color: #D2001A;">Close</b-button>
             </div>
         </div>
 
@@ -65,13 +65,50 @@ export default defineComponent({
         let takeoffColor = ref("gray");
         let connectText = ref("Connect");
         let armText = ref("Arm");  
-        let takeoffText = ref("Take Off");      
+        let takeoffText = ref("Take Off");   
+        let closeDisabled = ref(false);   
         
         let state = "idle";
+
+        emitter.on('autopilotState', (data) => {
+            if(data.state == "connected"){
+                connectColor.value = "#61AE4A";
+                connectText.value = "Disconnect";
+                armDisabled.value = false; 
+                state = "connected";                
+                closeDisabled.value = true;
+            }
+            else if(data.state == "armed"){
+                armColor.value = "#61AE4A";
+                armText.value = "Armed";
+                takeoffDisabled.value = false;
+            }
+            else if(data.state == "flying"){
+                takeoffColor.value = "#61AE4A";
+                takeoffText.value = "Flying";
+                takeoffDisabled.value = true;
+                textPractice.value = "Return home";
+                practiceColor.value = "#973a93";
+                practiceButtonDisabled.value = false;
+            }
+            else if(data.state == "returning"){
+                textPractice.value = "Returning...";
+                practiceColor.value = "#DC5F00";
+            }
+            else if(data.state == "onHearth"){
+                textPractice.value = "At home!";
+                practiceColor.value = "#61AE4A";    
+                armText.value = "Disarmed";
+                armColor.value = "gray";
+                takeoffColor.value = "gray";
+                connectDisabled.value = "False"
+                state = "connected";                                            
+            }
+        })
         
         function close(){
             context.emit('close'); // el context es passa com a parametre del setup
-            emitter.emit('videoCapture', {'capturing':false})
+            emitter.emit('videoCapture', {'capturing':false})            
         }
 
         function easyClicked(){
@@ -111,31 +148,50 @@ export default defineComponent({
                 state = "practising";  
             }
             else if(state == "practising"){
-                state == "disconnected";
+                state = "disconnected";
                 showingFlyingButtons.value = true;
-                practiceColor.value = "gray"
-                emitter.emit('videoCapture', {'capturing':false});            
+                practiceColor.value = "gray";
+                practiceButtonDisabled.value = true;
+                emitter.emit('videoCapture', {'capturing':false}); 
+                context.emit('stopPractice');
+            }
+            else if(state == "flying"){
+                state = "returning";
+                context.emit('returnHome');
             }
         }
 
         function connectClick(){
-            connectColor.value = "#DC5F00";
-            connectText.value = "Connecting...";
-            armDisabled.value = false;
-            context.emit('connect');
+            if (state == "disconnected"){
+                connectColor.value = "#DC5F00";
+                connectText.value = "Connecting...";                
+                context.emit('connect');                                
+            }
+            else if (state == "connected"){
+                connectColor.value = "gray";
+                connectText.value = "Connect";
+                practiceButtonDisabled.value = true;
+                armDisabled.value = true;
+                takeoffDisabled.value = true;
+                closeDisabled.value = false;
+                takeoffText.value = "Take off";
+                context.emit('disconnect');
+            }
+            
         }
 
         function armClick(){
             armColor.value = "#DC5F00";
             armText.value = "arming...";
-            takeoffDisabled.value = false;
             connectDisabled.value = true;
+            context.emit('arm');
         }
 
         function takeoffClick(){
             takeoffColor.value = "#DC5F00";
             takeoffText.value = "taking off...";
             armDisabled.value = true;
+            context.emit('takeoff');
         }
 
         return {
@@ -167,7 +223,8 @@ export default defineComponent({
             takeoffDisabled,
             connectText,
             armText,
-            takeoffText
+            takeoffText,
+            closeDisabled
         }
     }
 })
