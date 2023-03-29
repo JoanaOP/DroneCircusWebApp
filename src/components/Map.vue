@@ -194,7 +194,7 @@ export default defineComponent({
        function startMoving(){
             interval = setInterval(() => {
                 movePoint();
-            }, 1000);
+            }, 2000);
        }
 
        function stopMoving(){
