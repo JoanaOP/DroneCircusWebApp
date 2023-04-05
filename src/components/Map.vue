@@ -73,6 +73,7 @@ export default defineComponent({
             else if (code == 6){
                 direction = "Return";
             }
+            //emitter.emit('direction',{direction: direction});
        }
 
        function inside(point, vs) {
@@ -194,7 +195,7 @@ export default defineComponent({
        function startMoving(){
             interval = setInterval(() => {
                 movePoint();
-            }, 2000);
+            }, 3000);
        }
 
        function stopMoving(){
@@ -250,6 +251,7 @@ export default defineComponent({
            client.on('message', (topic,message) => {
                 if (topic=="imageService/droneCircusWebApp/code" && state == "practising"){
                     setDirection(message);
+                    emitter.emit('direction', {'direction': direction});
                     movePoint();
                 }
                 else if(topic=="imageService/droneCircusWebApp/code" && state == "flying"){

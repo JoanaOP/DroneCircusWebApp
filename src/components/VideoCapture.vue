@@ -21,7 +21,9 @@ export default defineComponent({
     mounted(){
         this.video = this.$refs.video
         this.canvas = this.$refs.canvas
-        this.canvasOut = this.$refs.canvasOut
+        this.canvasOut = this.$refs.canvasOut.getContext('2d');
+        this.direction = 'Stop'
+
         this.emitter.on('videoCapture', (cap) => {
             if(cap.capturing){
                 this.startCapture();
@@ -29,6 +31,10 @@ export default defineComponent({
             else if(!cap.capturing){
                 this.stopCapture();
             }
+        })
+
+        this.emitter.on('direction', (data) => {
+            this.direction = data.direction;
         })
 
         this.client.on('message', (topic,message) =>{
@@ -71,7 +77,7 @@ export default defineComponent({
                 this.client.publish("droneCircusWebApp/imageService/videoFrame",dataJSON);
                 this.client.subscribe("imageService/droneCircusWebApp/videoFrame");
                 this.imageList.push(this.canvas.toDataURL("image/jpeg"));                
-            }, 500);
+            }, 400);
         },
         stopCapture(){
             this.stream.getTracks().forEach(function(track) {
@@ -84,11 +90,14 @@ export default defineComponent({
         showImage(index) {   
             const img = new Image();        
             img.src = this.imageList[index];
-            console.log(img.src)
             img.onload = () => {
                 let dst;
                 dst = cv.imread (img);
                 cv.imshow ('output',dst);
+                this.canvasOut.font = "bold 50px Arial";
+                this.canvasOut.fillStyle = "red";
+                this.canvasOut.textBaseline = "bottom";
+                this.canvasOut.fillText(this.direction, 50, 80);
             }
         },    
         
@@ -101,7 +110,8 @@ export default defineComponent({
             stream: null,
             interval: null,
             imageList: [],
-            indexToShow: 0            
+            indexToShow: 0,
+            direction: null            
         }
     }, 
 

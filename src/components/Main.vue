@@ -82,7 +82,7 @@ export default defineComponent({
         })
         
         emitter.on('direction', (data) => {
-            if(state.value != "returning"){
+            if(state.value != "returning" && state.value != "practising"){
                 if(data.direction == "Drop"){
                     clientAutopilot.publish('droneCircusWebApp/autopilotService/drop');
                     clientAutopilot.publish('droneCircusWebApp/autopilotService/reset');
