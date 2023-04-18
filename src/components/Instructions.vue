@@ -30,7 +30,7 @@ export default defineComponent({
             else if(mode.value == "faces"){                
                 modeUrl.value = require("../assets/caras_faciles.png")
             }
-            else if(mode.value == "figures"){
+            else if(mode.value == "pose"){
                 if(difficulty.value == "easy"){
                     modeUrl.value = require("../assets/poses_faciles.png")
                 }

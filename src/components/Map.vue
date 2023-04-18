@@ -148,7 +148,7 @@ export default defineComponent({
        }
 
        const R = 6378.1;
-       const d = 0.001;
+       const d = 0.0005;
 
        function movePoint(){
             let bearing = null;
